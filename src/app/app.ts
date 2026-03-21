@@ -532,4 +532,11 @@ export class App {
   isDropTargetItem(pageId: string, itemId: string): boolean {
     return this.dnd.isDropTarget(pageId, [], itemId);
   }
+
+  sortedItems(items: FormItem[]): FormItem[] {
+    return [
+      ...items.filter((i) => i.type !== 'section'), // questions first
+      ...items.filter((i) => i.type === 'section'), // sections after
+    ];
+  }
 }

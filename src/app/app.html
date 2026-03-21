@@ -165,7 +165,7 @@
      with this version which has full drag-drop on top-level items.
      ───────────────────────────────────────────────────────────────────────── -->
 
-            @for (item of page.items; track item.id; let qi = $index) {
+            @for (item of sortedItems(page.items); track item.id; let qi = $index) {
               @if (item.type === 'section') {
                 <!-- ── Top-level Section ──────────────────────────────────────────── -->
                 <div
@@ -365,8 +365,9 @@
                         <svg class="w-3 h-3 inline mr-0.5" fill="currentColor" viewBox="0 0 20 20">
                           <path
                             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          /></svg
-                        ><span>Checkbox</span>
+                          />
+                        </svg>
+                        <span>Checkbox</span>
                       } @else {
                         <svg
                           class="w-3 h-3 inline mr-0.5"
@@ -379,8 +380,9 @@
                             stroke-linejoin="round"
                             stroke-width="2"
                             d="M4 6h16M4 12h8"
-                          /></svg
-                        ><span>Text answer</span>
+                          />
+                        </svg>
+                        <span>Text answer</span>
                       }
                     </span>
                     <select
