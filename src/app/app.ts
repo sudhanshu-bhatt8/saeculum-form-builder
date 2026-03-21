@@ -452,11 +452,16 @@ export class App {
     this.dnd.endDrag();
 
     if (!dragging || dragging.itemId === targetItem.id) return;
+    if (dragging.pageId !== pageId) return;
 
-    // Must be same page and same parent (top level)
-    if (dragging.pageId !== pageId || dragging.parentPath.length !== 0) return;
-
-    this.reorderAt(pageId, [], dragging.itemId, targetItem.id);
+    // Use the unified reorder handler — fromParentPath may be [] or a nested path
+    this.onSectionChildReorder({
+      pageId,
+      fromParentPath: dragging.parentPath,
+      fromId: dragging.itemId,
+      toParentPath: [], // top level is always []
+      toId: targetItem.id,
+    });
   }
 
   // Helper used by both top-level drops and reorder events from SectionChildrenComponent
@@ -484,11 +489,39 @@ export class App {
   // Called from (reorder) output of <app-section-children>
   onSectionChildReorder(event: {
     pageId: string;
-    parentPath: string[];
+    fromParentPath: string[];
     fromId: string;
+    toParentPath: string[];
     toId: string;
   }) {
-    this.reorderAt(event.pageId, event.parentPath, event.fromId, event.toId);
+    this.mutatePage(event.pageId, (p) => {
+      // 1. Find the source parent list
+      const fromList =
+        event.fromParentPath.length === 0
+          ? p.items
+          : (this.findSection(p.items, event.fromParentPath)?.children as FormItem[]);
+
+      // 2. Find the target parent list
+      const toList =
+        event.toParentPath.length === 0
+          ? p.items
+          : (this.findSection(p.items, event.toParentPath)?.children as FormItem[]);
+
+      if (!fromList || !toList) return;
+
+      // 3. Pull the item out of the source list
+      const fromIdx = fromList.findIndex((i) => i.id === event.fromId);
+      if (fromIdx === -1) return;
+      const [moved] = fromList.splice(fromIdx, 1);
+
+      // 4. Insert it at the correct position in the target list
+      const toIdx = toList.findIndex((i) => i.id === event.toId);
+      if (toIdx === -1) {
+        toList.push(moved); // fallback: append at end
+      } else {
+        toList.splice(toIdx, 0, moved);
+      }
+    });
   }
 
   // Convenience helpers for template class bindings

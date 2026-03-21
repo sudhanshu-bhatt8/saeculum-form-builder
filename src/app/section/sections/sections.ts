@@ -24,8 +24,9 @@ export class SectionChildrenComponent {
   @Output() toggleCollapse = new EventEmitter<{ id: string; path: string[] }>();
   @Output() reorder = new EventEmitter<{
     pageId: string;
-    parentPath: string[];
+    fromParentPath: string[]; // where it was dragged FROM
     fromId: string;
+    toParentPath: string[]; // where it's being dropped TO
     toId: string;
   }>();
 
@@ -78,18 +79,16 @@ export class SectionChildrenComponent {
     this.dnd.endDrag();
 
     if (!dragging || dragging.itemId === targetItem.id) return;
+    if (dragging.pageId !== this.pageId) return; // still block cross-PAGE drops
 
-    // Only reorder within the same parent container
-    if (
-      dragging.pageId !== this.pageId ||
-      JSON.stringify(dragging.parentPath) !== JSON.stringify(this.path)
-    )
-      return;
+    // Sections can't be dropped INTO themselves
+    if (targetItem.type === 'section' && dragging.itemId === targetItem.id) return;
 
     this.reorder.emit({
       pageId: this.pageId,
-      parentPath: this.path,
+      fromParentPath: dragging.parentPath, // where it came from
       fromId: dragging.itemId,
+      toParentPath: this.path, // where we are now
       toId: targetItem.id,
     });
   }
