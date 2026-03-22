@@ -14,19 +14,10 @@
       </svg>
       <span class="text-sm font-semibold text-gray-700">Form Builder</span>
     </div>
-    <button
-      (click)="loadTestData()"
-      class="text-xs px-2 py-1 rounded border border-orange-300 text-orange-600 hover:bg-orange-50 transition"
-    >
-      Load 1000 test Qs
-    </button>
-
-    <button
-      (click)="clearAll()"
-      class="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 transition"
-    >
-      Clear All
-    </button>
+    <div class="hidden sm:flex items-center gap-2">
+      <button (click)="loadTestData()" ...>Load 1000 test Qs</button>
+      <button (click)="clearAll()" ...>Clear All</button>
+    </div>
     <div class="flex items-center gap-1">
       <button
         [disabled]="!canUndo()"
@@ -134,7 +125,7 @@
           </div>
 
           <!-- Page 3-dot menu -->
-          <div class="relative flex-shrink-0 ml-2">
+          <div (click)="openPageMenuId.set('')" class="relative flex-shrink-0 ml-2">
             <button
               (click)="togglePageMenu(page.id)"
               class="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition"
@@ -148,7 +139,7 @@
             @if (openPageMenuId() === page.id) {
               <div
                 class="absolute right-0 top-7 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 w-36"
-                (mouseleave)="openPageMenuId.set('')"
+                (click)="$event.stopPropagation()"
               >
                 <button
                   (click)="deletePage(page.id)"
@@ -275,7 +266,7 @@
 
                       @if (!item.collapsed) {
                         <div
-                          class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
+                          class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
                         >
                           <button
                             (click)="addQuestionToSection(page.id, item.id)"
@@ -320,7 +311,7 @@
 
                       <button
                         (click)="deleteItem(page.id, item.id)"
-                        class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition p-0.5"
+                        class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-gray-300 hover:text-red-400 transition p-2 sm:p-0.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 touch-manipulation"
                         aria-label="Delete section"
                       >
                         <svg
