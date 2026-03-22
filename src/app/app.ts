@@ -159,6 +159,13 @@ export class App {
     return this.virtualRows(pageId).length >= this.virtualScrollThreshold;
   }
 
+  async clearAll() {
+    if (!confirm('This will delete all pages and questions. Are you sure?')) return;
+    this.pushUndo();
+    this.pages.set([mkPage(1)]); // reset to a single empty page
+    await this.idb.clearAll();
+  }
+
   async loadTestData() {
     const testPages = this.idb.generateTestData();
     this.pushUndo();
