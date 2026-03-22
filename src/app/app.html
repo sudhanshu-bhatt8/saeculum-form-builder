@@ -58,7 +58,9 @@
         class="w-full max-w-4xl bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden min-w-0"
       >
         <!-- Page Header -->
-        <div class="flex items-start justify-between px-3 sm:px-4 py-3 border-b border-gray-100 gap-2">
+        <div
+          class="flex items-start justify-between px-3 sm:px-4 py-3 border-b border-gray-100 gap-2"
+        >
           <div class="flex items-start gap-2 flex-1 min-w-0">
             <!-- Collapse toggle -->
             <button
@@ -170,8 +172,8 @@
             <div
               class="border-b border-amber-100 bg-amber-50/80 text-[10px] text-amber-900 px-3 py-1.5"
             >
-              Large form: using virtual scroll. Drag-and-drop reorder is off here; collapse
-              sections or stay under {{ virtualScrollThreshold }} visible rows for classic mode.
+              Large form: using virtual scroll. Drag-and-drop reorder is off here; collapse sections
+              or stay under {{ virtualScrollThreshold }} visible rows for classic mode.
             </div>
             <cdk-virtual-scroll-viewport
               [itemSize]="virtualRowHeightPx"
@@ -188,229 +190,128 @@
               />
             </cdk-virtual-scroll-viewport>
           } @else {
-          <div class="divide-y divide-gray-50 min-w-0 overflow-x-auto">
-            @for (item of sortedItems(page.items); track item.id) {
-              @if (item.type === 'section') {
-                <!-- ── Top-level Section ──────────────────────────────────────────── -->
-                <div
-                  class="group transition-all duration-150"
-                  [class.opacity-40]="isDraggingItem(page.id, item.id)"
-                  [class.border-t-2]="isDropTargetItem(page.id, item.id)"
-                  [class.border-blue-400]="isDropTargetItem(page.id, item.id)"
-                  [class.ring-2]="isRowSelected(page.id, [], item.id)"
-                  [class.ring-blue-400]="isRowSelected(page.id, [], item.id)"
-                  [class.relative]="isRowSelected(page.id, [], item.id)"
-                  [class.z-10]="isRowSelected(page.id, [], item.id)"
-                  (click)="onTopLevelRowClick($event, page.id, item.id, page.items)"
-                  [attr.draggable]="item.collapsed ? 'true' : 'false'"
-                  (dragstart)="onDragStart($event, page.id, item)"
-                  (dragover)="onDragOver($event, page.id, item)"
-                  (drop)="onDrop($event, page.id, item)"
-                  (dragend)="onDragEnd()"
-                >
-                  <!-- Section Title Row -->
+            <div class="divide-y divide-gray-50 min-w-0 overflow-x-auto">
+              @for (item of sortedItems(page.items); track item.id) {
+                @if (item.type === 'section') {
+                  <!-- ── Top-level Section ──────────────────────────────────────────── -->
                   <div
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-50 border-t border-gray-100"
-                    [class.border-b]="!item.collapsed"
+                    class="group transition-all duration-150"
+                    [class.opacity-40]="isDraggingItem(page.id, item.id)"
+                    [class.border-t-2]="isDropTargetItem(page.id, item.id)"
+                    [class.border-blue-400]="isDropTargetItem(page.id, item.id)"
+                    [class.ring-2]="isRowSelected(page.id, [], item.id)"
+                    [class.ring-blue-400]="isRowSelected(page.id, [], item.id)"
+                    [class.relative]="isRowSelected(page.id, [], item.id)"
+                    [class.z-10]="isRowSelected(page.id, [], item.id)"
+                    (click)="onTopLevelRowClick($event, page.id, item.id, page.items)"
+                    [attr.draggable]="item.collapsed ? 'true' : 'false'"
+                    (dragstart)="onDragStart($event, page.id, item)"
+                    (dragover)="onDragOver($event, page.id, item)"
+                    (drop)="onDrop($event, page.id, item)"
+                    (dragend)="onDragEnd()"
                   >
-                    <span
-                      class="flex-shrink-0 text-gray-300 hover:text-gray-500 transition"
-                      [class.cursor-grab]="item.collapsed"
-                      [class.cursor-not-allowed]="!item.collapsed"
-                      [title]="!item.collapsed ? 'Collapse section to drag' : 'Drag to reorder'"
+                    <!-- Section Title Row -->
+                    <div
+                      class="flex items-center gap-2 px-4 py-2 bg-gray-50 border-t border-gray-100"
+                      [class.border-b]="!item.collapsed"
                     >
-                      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                        <circle cx="7" cy="4" r="1.2" />
-                        <circle cx="13" cy="4" r="1.2" />
-                        <circle cx="7" cy="10" r="1.2" />
-                        <circle cx="13" cy="10" r="1.2" />
-                        <circle cx="7" cy="16" r="1.2" />
-                        <circle cx="13" cy="16" r="1.2" />
-                      </svg>
-                    </span>
-
-                    <button
-                      (click)="toggleSection(page.id, item.id)"
-                      class="text-gray-400 hover:text-gray-600 transition"
-                      [attr.aria-label]="item.collapsed ? 'Expand section' : 'Collapse section'"
-                    >
-                      <svg
-                        class="w-3.5 h-3.5 transition-transform duration-150"
-                        [class.-rotate-90]="item.collapsed"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <span
+                        class="flex-shrink-0 text-gray-300 hover:text-gray-500 transition"
+                        [class.cursor-grab]="item.collapsed"
+                        [class.cursor-not-allowed]="!item.collapsed"
+                        [title]="!item.collapsed ? 'Collapse section to drag' : 'Drag to reorder'"
                       >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2.5"
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <circle cx="7" cy="4" r="1.2" />
+                          <circle cx="13" cy="4" r="1.2" />
+                          <circle cx="7" cy="10" r="1.2" />
+                          <circle cx="13" cy="10" r="1.2" />
+                          <circle cx="7" cy="16" r="1.2" />
+                          <circle cx="13" cy="16" r="1.2" />
+                        </svg>
+                      </span>
 
-                    <input
-                      [value]="item.title"
-                      (input)="updateItemTitle(page.id, item.id, $any($event.target).value)"
-                      class="flex-1 text-xs font-semibold text-gray-700 bg-transparent outline-none placeholder-gray-400"
-                      placeholder="Section title..."
-                      aria-label="Section title"
-                    />
-
-                    @if (!item.collapsed) {
-                      <div
-                        class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
+                      <button
+                        (click)="toggleSection(page.id, item.id)"
+                        class="text-gray-400 hover:text-gray-600 transition"
+                        [attr.aria-label]="item.collapsed ? 'Expand section' : 'Collapse section'"
                       >
-                        <button
-                          (click)="addQuestionToSection(page.id, item.id)"
-                          class="flex items-center gap-0.5 text-[10px] text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded transition"
+                        <svg
+                          class="w-3.5 h-3.5 transition-transform duration-150"
+                          [class.-rotate-90]="item.collapsed"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <svg
-                            class="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2.5"
-                              d="M12 4v16m8-8H4"
-                            />
-                          </svg>
-                          Question
-                        </button>
-                        <button
-                          (click)="addSectionInsideSection(page.id, item.id)"
-                          class="flex items-center gap-0.5 text-[10px] text-gray-500 hover:bg-gray-100 px-1.5 py-0.5 rounded transition"
-                        >
-                          <svg
-                            class="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M4 6h16M4 10h16M4 14h8"
-                            />
-                          </svg>
-                          Section
-                        </button>
-                      </div>
-                    }
-
-                    <button
-                      (click)="deleteItem(page.id, item.id)"
-                      class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition p-0.5"
-                      aria-label="Delete section"
-                    >
-                      <svg
-                        class="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M10 3h4a1 1 0 011 1v3H9V4a1 1 0 011-1z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <!-- Section Children — recursive component -->
-                  @if (!item.collapsed) {
-                    <div class="divide-y divide-gray-50 bg-blue-50/20">
-                      <app-section-children
-                        [items]="item.children"
-                        [depth]="1"
-                        [path]="[item.id]"
-                        [pageId]="page.id"
-                        [listSelection]="selection()"
-                        (addQuestion)="addQuestionAt(page.id, $event.path, $event.id)"
-                        (addSection)="addSectionAt(page.id, $event.path, $event.id)"
-                        (deleteItem)="deleteAt(page.id, $event.path, $event.id)"
-                        (titleChange)="updateTitleAt(page.id, $event.path, $event.id, $event.value)"
-                        (typeChange)="
-                          setTypeAt(page.id, $event.path, $event.id, $any($event.value))
-                        "
-                        (toggleCollapse)="toggleCollapseAt(page.id, $event.path, $event.id)"
-                        (reorder)="onSectionChildReorder($event)"
-                        (selectRows)="onListRowClick(page.id, [item.id], $event, item.children)"
-                      />
-                    </div>
-                  }
-                </div>
-              } @else {
-                <!-- ── Standalone Question Row ────────────────────────────────────── -->
-                <div
-                  class="flex flex-col gap-2 px-3 sm:px-4 sm:grid sm:grid-cols-[1fr_minmax(0,200px)_40px] sm:items-center sm:gap-0 group/row hover:bg-gray-50 transition-all duration-150 min-w-0"
-                  [class.opacity-40]="isDraggingItem(page.id, item.id)"
-                  [class.border-t-2]="isDropTargetItem(page.id, item.id)"
-                  [class.border-blue-400]="isDropTargetItem(page.id, item.id)"
-                  [class.bg-blue-50]="isDropTargetItem(page.id, item.id)"
-                  [class.ring-2]="isRowSelected(page.id, [], item.id)"
-                  [class.ring-blue-400]="isRowSelected(page.id, [], item.id)"
-                  [class.relative]="isRowSelected(page.id, [], item.id)"
-                  [class.z-10]="isRowSelected(page.id, [], item.id)"
-                  (click)="onTopLevelRowClick($event, page.id, item.id, page.items)"
-                  draggable="true"
-                  (dragstart)="onDragStart($event, page.id, item)"
-                  (dragover)="onDragOver($event, page.id, item)"
-                  (drop)="onDrop($event, page.id, item)"
-                  (dragend)="onDragEnd()"
-                  role="listitem"
-                  [attr.aria-label]="'Question: ' + item.title"
-                >
-                  <div
-                    class="flex items-center gap-2 py-2 sm:pr-2 sm:border-r border-gray-100 min-w-0"
-                  >
-                    <span
-                      class="cursor-grab text-gray-200 group-hover/row:text-gray-400 transition flex-shrink-0"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                        <circle cx="7" cy="4" r="1.2" />
-                        <circle cx="13" cy="4" r="1.2" />
-                        <circle cx="7" cy="10" r="1.2" />
-                        <circle cx="13" cy="10" r="1.2" />
-                        <circle cx="7" cy="16" r="1.2" />
-                        <circle cx="13" cy="16" r="1.2" />
-                      </svg>
-                    </span>
-                    <input
-                      [value]="item.title"
-                      (input)="updateItemTitle(page.id, item.id, $any($event.target).value)"
-                      (keydown.enter)="addQuestionAfter(page.id, item.id)"
-                      class="flex-1 text-xs text-gray-700 bg-transparent outline-none placeholder-gray-400 py-1"
-                      placeholder="Question..."
-                      aria-label="Question text"
-                    />
-                  </div>
-
-                  <div
-                    class="flex items-center gap-2 px-0 sm:px-2 py-1 sm:border-r border-gray-100 min-w-0"
-                  >
-                    <span
-                      class="text-[10px] flex-shrink-0"
-                      [class.text-green-600]="item.type === 'checkbox'"
-                      [class.text-blue-500]="item.type !== 'checkbox'"
-                    >
-                      @if (item.type === 'checkbox') {
-                        <svg class="w-3 h-3 inline mr-0.5" fill="currentColor" viewBox="0 0 20 20">
                           <path
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2.5"
+                            d="M19 9l-7 7-7-7"
                           />
                         </svg>
-                        <span>Checkbox</span>
-                      } @else {
+                      </button>
+
+                      <input
+                        [value]="item.title"
+                        (input)="updateItemTitle(page.id, item.id, $any($event.target).value)"
+                        class="flex-1 text-xs font-semibold text-gray-700 bg-transparent outline-none placeholder-gray-400"
+                        placeholder="Section title..."
+                        aria-label="Section title"
+                      />
+
+                      @if (!item.collapsed) {
+                        <div
+                          class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <button
+                            (click)="addQuestionToSection(page.id, item.id)"
+                            class="flex items-center gap-0.5 text-[10px] text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded transition"
+                          >
+                            <svg
+                              class="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2.5"
+                                d="M12 4v16m8-8H4"
+                              />
+                            </svg>
+                            Question
+                          </button>
+                          <button
+                            (click)="addSectionInsideSection(page.id, item.id)"
+                            class="flex items-center gap-0.5 text-[10px] text-gray-500 hover:bg-gray-100 px-1.5 py-0.5 rounded transition"
+                          >
+                            <svg
+                              class="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M4 6h16M4 10h16M4 14h8"
+                              />
+                            </svg>
+                            Section
+                          </button>
+                        </div>
+                      }
+
+                      <button
+                        (click)="deleteItem(page.id, item.id)"
+                        class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition p-0.5"
+                        aria-label="Delete section"
+                      >
                         <svg
-                          class="w-3 h-3 inline mr-0.5"
+                          class="w-3.5 h-3.5"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -419,56 +320,163 @@
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="2"
-                            d="M4 6h16M4 12h8"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M10 3h4a1 1 0 011 1v3H9V4a1 1 0 011-1z"
                           />
                         </svg>
-                        <span>Text answer</span>
-                      }
-                    </span>
-                    <select
-                      [value]="item.type"
-                      (change)="setItemType(page.id, item.id, $any($event.target).value)"
-                      class="flex-1 sm:ml-auto text-[11px] text-gray-500 bg-transparent outline-none cursor-pointer min-h-11 sm:min-h-0 rounded border border-gray-200 sm:border-0 px-2 sm:px-0"
-                      aria-label="Response type"
-                    >
-                      <option value="text">Text answer</option>
-                      <option value="checkbox">Checkbox</option>
-                    </select>
-                  </div>
+                      </button>
+                    </div>
 
-                  <div class="flex items-center justify-end sm:justify-center py-1">
-                    <button
-                      type="button"
-                      (click)="deleteItem(page.id, item.id)"
-                      class="text-gray-300 hover:text-red-400 transition p-2 sm:p-0.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 sm:opacity-0 sm:group-hover/row:opacity-100 touch-manipulation"
-                      aria-label="Delete question"
-                    >
-                      <svg
-                        class="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M10 3h4a1 1 0 011 1v3H9V4a1 1 0 011-1z"
+                    <!-- Section Children — recursive component -->
+                    @if (!item.collapsed) {
+                      <div class="divide-y divide-gray-50 bg-blue-50/20">
+                        <app-section-children
+                          [items]="item.children"
+                          [depth]="1"
+                          [path]="[item.id]"
+                          [pageId]="page.id"
+                          [listSelection]="selection()"
+                          (addQuestion)="addQuestionAt(page.id, $event.path, $event.id)"
+                          (addSection)="addSectionAt(page.id, $event.path, $event.id)"
+                          (deleteItem)="deleteAt(page.id, $event.path, $event.id)"
+                          (titleChange)="
+                            updateTitleAt(page.id, $event.path, $event.id, $event.value)
+                          "
+                          (typeChange)="
+                            setTypeAt(page.id, $event.path, $event.id, $any($event.value))
+                          "
+                          (toggleCollapse)="toggleCollapseAt(page.id, $event.path, $event.id)"
+                          (reorder)="onSectionChildReorder($event)"
+                          (selectRows)="onNestedRowSelect(page.id, $event)"
                         />
-                      </svg>
-                    </button>
+                      </div>
+                    }
                   </div>
+                } @else {
+                  <!-- ── Standalone Question Row ────────────────────────────────────── -->
+                  <div
+                    class="flex flex-col gap-2 px-3 sm:px-4 sm:grid sm:grid-cols-[1fr_minmax(0,200px)_40px] sm:items-center sm:gap-0 group/row hover:bg-gray-50 transition-all duration-150 min-w-0"
+                    [class.opacity-40]="isDraggingItem(page.id, item.id)"
+                    [class.border-t-2]="isDropTargetItem(page.id, item.id)"
+                    [class.border-blue-400]="isDropTargetItem(page.id, item.id)"
+                    [class.bg-blue-50]="isDropTargetItem(page.id, item.id)"
+                    [class.ring-2]="isRowSelected(page.id, [], item.id)"
+                    [class.ring-blue-400]="isRowSelected(page.id, [], item.id)"
+                    [class.relative]="isRowSelected(page.id, [], item.id)"
+                    [class.z-10]="isRowSelected(page.id, [], item.id)"
+                    (click)="onTopLevelRowClick($event, page.id, item.id, page.items)"
+                    draggable="true"
+                    (dragstart)="onDragStart($event, page.id, item)"
+                    (dragover)="onDragOver($event, page.id, item)"
+                    (drop)="onDrop($event, page.id, item)"
+                    (dragend)="onDragEnd()"
+                    role="listitem"
+                    [attr.aria-label]="'Question: ' + item.title"
+                  >
+                    <div
+                      class="flex items-center gap-2 py-2 sm:pr-2 sm:border-r border-gray-100 min-w-0"
+                    >
+                      <span
+                        class="cursor-grab text-gray-200 group-hover/row:text-gray-400 transition flex-shrink-0"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <circle cx="7" cy="4" r="1.2" />
+                          <circle cx="13" cy="4" r="1.2" />
+                          <circle cx="7" cy="10" r="1.2" />
+                          <circle cx="13" cy="10" r="1.2" />
+                          <circle cx="7" cy="16" r="1.2" />
+                          <circle cx="13" cy="16" r="1.2" />
+                        </svg>
+                      </span>
+                      <input
+                        [value]="item.title"
+                        (input)="updateItemTitle(page.id, item.id, $any($event.target).value)"
+                        (keydown.enter)="addQuestionAfter(page.id, item.id)"
+                        class="flex-1 text-xs text-gray-700 bg-transparent outline-none placeholder-gray-400 py-1"
+                        placeholder="Question..."
+                        aria-label="Question text"
+                      />
+                    </div>
+
+                    <div
+                      class="flex items-center gap-2 px-0 sm:px-2 py-1 sm:border-r border-gray-100 min-w-0"
+                    >
+                      <span
+                        class="text-[10px] flex-shrink-0"
+                        [class.text-green-600]="item.type === 'checkbox'"
+                        [class.text-blue-500]="item.type !== 'checkbox'"
+                      >
+                        @if (item.type === 'checkbox') {
+                          <svg
+                            class="w-3 h-3 inline mr-0.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            />
+                          </svg>
+                          <span>Checkbox</span>
+                        } @else {
+                          <svg
+                            class="w-3 h-3 inline mr-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M4 6h16M4 12h8"
+                            />
+                          </svg>
+                          <span>Text answer</span>
+                        }
+                      </span>
+                      <select
+                        [value]="item.type"
+                        (change)="setItemType(page.id, item.id, $any($event.target).value)"
+                        class="flex-1 sm:ml-auto text-[11px] text-gray-500 bg-transparent outline-none cursor-pointer min-h-11 sm:min-h-0 rounded border border-gray-200 sm:border-0 px-2 sm:px-0"
+                        aria-label="Response type"
+                      >
+                        <option value="text">Text answer</option>
+                        <option value="checkbox">Checkbox</option>
+                      </select>
+                    </div>
+
+                    <div class="flex items-center justify-end sm:justify-center py-1">
+                      <button
+                        type="button"
+                        (click)="deleteItem(page.id, item.id)"
+                        class="text-gray-300 hover:text-red-400 transition p-2 sm:p-0.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 sm:opacity-0 sm:group-hover/row:opacity-100 touch-manipulation"
+                        aria-label="Delete question"
+                      >
+                        <svg
+                          class="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M10 3h4a1 1 0 011 1v3H9V4a1 1 0 011-1z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                }
+              }
+
+              <!-- Empty state per page -->
+              @if (page.items.length === 0) {
+                <div class="px-4 py-6 text-center text-xs text-gray-400">
+                  No questions yet — use the buttons below to add one.
                 </div>
               }
-            }
-
-            <!-- Empty state per page -->
-            @if (page.items.length === 0) {
-              <div class="px-4 py-6 text-center text-xs text-gray-400">
-                No questions yet — use the buttons below to add one.
-              </div>
-            }
-          </div>
+            </div>
           }
 
           <!-- Bottom Action Bar (per page) -->
@@ -524,6 +532,5 @@
         }
       </div>
     }
-
   </main>
 </div>

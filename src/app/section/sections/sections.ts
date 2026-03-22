@@ -14,7 +14,10 @@ import { DragDropService } from '../../services/drag-ndrop';
 import { sortedFormItems } from '../../form-item-order';
 import type { FlatFormRow, FormItemLike } from '../../form-flatten';
 import { flatRowTrackKey } from '../../form-flatten';
-import { FormVirtualRowComponent, type VirtualRowAction } from '../../form-virtual-row/form-virtual-row';
+import {
+  FormVirtualRowComponent,
+  type VirtualRowAction,
+} from '../../form-virtual-row/form-virtual-row';
 
 @Component({
   selector: 'app-section-children',
@@ -44,21 +47,25 @@ export class SectionChildrenComponent {
   @Output() toggleCollapse = new EventEmitter<{ id: string; path: string[] }>();
   @Output() reorder = new EventEmitter<{
     pageId: string;
-    fromParentPath: string[]; // where it was dragged FROM
+    fromParentPath: string[];
     fromId: string;
-    toParentPath: string[]; // where it's being dropped TO
+    toParentPath: string[];
     toId: string;
   }>();
-  @Output() selectRows = new EventEmitter<{ itemId: string; shiftKey: boolean }>();
+
+  // ← parentPath is now included in the event so app.ts can find the correct list
+  @Output() selectRows = new EventEmitter<{
+    itemId: string;
+    shiftKey: boolean;
+    parentPath: string[];
+  }>();
 
   dnd = inject(DragDropService);
 
-  /** Questions first, sections last (matches parent selection indices). */
   readonly sortItems = sortedFormItems;
   readonly virtualScrollThreshold = 55;
   readonly virtualRowHeightPx = 88;
 
-  /** Virtual scroll only when every row is a question (fixed-height rows + selection path matches `path`). */
   useVirtualQuestionList(): boolean {
     return (
       this.items.length >= this.virtualScrollThreshold &&
@@ -80,9 +87,8 @@ export class SectionChildrenComponent {
   onQuestionVirtualAction(a: VirtualRowAction) {
     switch (a.type) {
       case 'select':
-        this.selectRows.emit({ itemId: a.itemId, shiftKey: a.shiftKey });
-        break;
-      case 'toggleCollapse':
+        // Include parentPath so app.ts can resolve the correct list
+        this.selectRows.emit({ itemId: a.itemId, shiftKey: a.shiftKey, parentPath: this.path });
         break;
       case 'titleChange':
         this.titleChange.emit({ id: a.id, value: a.value, path: a.parentPath });
@@ -93,8 +99,7 @@ export class SectionChildrenComponent {
       case 'delete':
         this.deleteItem.emit({ id: a.id, path: a.parentPath });
         break;
-      case 'addQuestion':
-      case 'addSection':
+      default:
         break;
     }
   }
@@ -129,10 +134,11 @@ export class SectionChildrenComponent {
     if (this.typingTarget(ev.target)) return;
     const t = ev.target as HTMLElement;
     if (t.closest('button')) return;
-    this.selectRows.emit({ itemId, shiftKey: ev.shiftKey });
+    // Include this.path so app.ts knows which nested list was clicked
+    this.selectRows.emit({ itemId, shiftKey: ev.shiftKey, parentPath: this.path });
   }
 
-  // ── Drag handlers ───────────────────────────────────────────────────────────
+  // ── Drag handlers ──────────────────────────────────────────────────────────
 
   onDragStart(event: DragEvent, item: FormQuestion | FormSection) {
     if (item.type === 'section' && !(item as FormSection).collapsed) {
@@ -142,7 +148,6 @@ export class SectionChildrenComponent {
     event.stopPropagation();
     event.dataTransfer!.effectAllowed = 'move';
     event.dataTransfer!.setData('text/plain', item.id);
-
     this.dnd.startDrag({
       pageId: this.pageId,
       parentPath: this.path,
@@ -155,11 +160,7 @@ export class SectionChildrenComponent {
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer!.dropEffect = 'move';
-    this.dnd.setDropTarget({
-      pageId: this.pageId,
-      parentPath: this.path,
-      itemId: item.id,
-    });
+    this.dnd.setDropTarget({ pageId: this.pageId, parentPath: this.path, itemId: item.id });
   }
 
   onDragLeave(event: DragEvent) {
@@ -170,21 +171,16 @@ export class SectionChildrenComponent {
   onDrop(event: DragEvent, targetItem: FormQuestion | FormSection) {
     event.preventDefault();
     event.stopPropagation();
-
     const dragging = this.dnd.dragging();
     this.dnd.endDrag();
-
     if (!dragging || dragging.itemId === targetItem.id) return;
-    if (dragging.pageId !== this.pageId) return; // still block cross-PAGE drops
-
-    // Sections can't be dropped INTO themselves
+    if (dragging.pageId !== this.pageId) return;
     if (targetItem.type === 'section' && dragging.itemId === targetItem.id) return;
-
     this.reorder.emit({
       pageId: this.pageId,
-      fromParentPath: dragging.parentPath, // where it came from
+      fromParentPath: dragging.parentPath,
       fromId: dragging.itemId,
-      toParentPath: this.path, // where we are now
+      toParentPath: this.path,
       toId: targetItem.id,
     });
   }

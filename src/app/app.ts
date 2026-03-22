@@ -159,7 +159,12 @@ export class App {
       case 'select': {
         const list = this.getListRef(a.pageId, a.parentPath);
         if (list)
-          this.onListRowClick(a.pageId, a.parentPath, { itemId: a.itemId, shiftKey: a.shiftKey }, list);
+          this.onListRowClick(
+            a.pageId,
+            a.parentPath,
+            { itemId: a.itemId, shiftKey: a.shiftKey },
+            list,
+          );
         break;
       }
       case 'toggleCollapse':
@@ -424,12 +429,7 @@ export class App {
     const idx = display.findIndex((i) => i.id === ev.itemId);
     if (idx === -1) return;
     const cur = this.selection();
-    if (
-      !ev.shiftKey ||
-      !cur ||
-      cur.pageId !== pageId ||
-      !pathsEqual(cur.parentPath, parentPath)
-    ) {
+    if (!ev.shiftKey || !cur || cur.pageId !== pageId || !pathsEqual(cur.parentPath, parentPath)) {
       this.selection.set({ pageId, parentPath, anchorIndex: idx, focusIndex: idx });
       return;
     }
@@ -514,6 +514,20 @@ export class App {
         insertAt++;
       }
     });
+  }
+
+  onNestedRowSelect(
+    pageId: string,
+    event: { itemId: string; shiftKey: boolean; parentPath: string[] },
+  ) {
+    const list = this.getListRef(pageId, event.parentPath);
+    if (!list) return;
+    this.onListRowClick(
+      pageId,
+      event.parentPath,
+      { itemId: event.itemId, shiftKey: event.shiftKey },
+      list,
+    );
   }
 
   private getListRefFromPage(page: FormPage, parentPath: string[]): FormItem[] | undefined {
@@ -777,5 +791,4 @@ export class App {
   isDropTargetItem(pageId: string, itemId: string): boolean {
     return this.dnd.isDropTarget(pageId, [], itemId);
   }
-
 }
