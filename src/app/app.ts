@@ -21,6 +21,7 @@ import {
   FormVirtualRowComponent,
   type VirtualRowAction,
 } from './form-virtual-row/form-virtual-row';
+import { IndexedDbService } from './services/indexed-db.service';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type QuestionType = 'text' | 'checkbox';
@@ -143,13 +144,26 @@ export class App {
   private redoStack: string[] = [];
   canUndo = computed(() => this.undoStack.length > 0);
   canRedo = computed(() => this.redoStack.length > 0);
+  idb = inject(IndexedDbService);
 
   virtualRows(pageId: string): FlatFormRow[] {
     return this.pageFlatRows().get(pageId) ?? [];
   }
+  async ngOnInit() {
+    await this.idb.open();
+    const saved = await this.idb.loadPages();
+    if (saved?.length) this.pages.set(saved);
+  }
 
   useVirtualForPage(pageId: string): boolean {
     return this.virtualRows(pageId).length >= this.virtualScrollThreshold;
+  }
+
+  async loadTestData() {
+    const testPages = this.idb.generateTestData();
+    this.pushUndo();
+    this.pages.set(testPages);
+    await this.idb.savePages(testPages);
   }
 
   trackFlatRow = (_: number, row: FlatFormRow) => flatRowTrackKey(row);
@@ -203,6 +217,7 @@ export class App {
   private pushUndo() {
     this.undoStack.push(this.snap());
     this.redoStack = [];
+    this.idb.savePages(this.pages()).catch(console.error); // ← add this
   }
   undo() {
     const p = this.undoStack.pop();

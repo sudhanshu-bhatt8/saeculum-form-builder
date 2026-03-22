@@ -14,6 +14,12 @@
       </svg>
       <span class="text-sm font-semibold text-gray-700">Form Builder</span>
     </div>
+    <button
+      (click)="loadTestData()"
+      class="text-xs px-2 py-1 rounded border border-orange-300 text-orange-600 hover:bg-orange-50 transition"
+    >
+      Load 1000 test Qs
+    </button>
     <div class="flex items-center gap-1">
       <button
         [disabled]="!canUndo()"
