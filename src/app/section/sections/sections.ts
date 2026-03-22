@@ -1,12 +1,31 @@
-import { Component, Input, Output, EventEmitter, forwardRef, inject } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  forwardRef,
+  inject,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { FormQuestion, FormSection } from '../../app';
+import { ScrollingModule } from '@angular/cdk/scrolling';
+import type { FormQuestion, FormSection, FormListSelection } from '../../app';
 import { DragDropService } from '../../services/drag-ndrop';
+import { sortedFormItems } from '../../form-item-order';
+import type { FlatFormRow, FormItemLike } from '../../form-flatten';
+import { flatRowTrackKey } from '../../form-flatten';
+import { FormVirtualRowComponent, type VirtualRowAction } from '../../form-virtual-row/form-virtual-row';
 
 @Component({
   selector: 'app-section-children',
   standalone: true,
-  imports: [FormsModule, forwardRef(() => SectionChildrenComponent)],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    FormsModule,
+    ScrollingModule,
+    FormVirtualRowComponent,
+    forwardRef(() => SectionChildrenComponent),
+  ],
   templateUrl: './sections.html',
   styleUrl: './sections.scss',
 })
@@ -15,6 +34,7 @@ export class SectionChildrenComponent {
   @Input() depth = 1;
   @Input() path: string[] = [];
   @Input() pageId = '';
+  @Input() listSelection: FormListSelection | null = null;
 
   @Output() addQuestion = new EventEmitter<{ id: string; path: string[] }>();
   @Output() addSection = new EventEmitter<{ id: string; path: string[] }>();
@@ -29,11 +49,87 @@ export class SectionChildrenComponent {
     toParentPath: string[]; // where it's being dropped TO
     toId: string;
   }>();
+  @Output() selectRows = new EventEmitter<{ itemId: string; shiftKey: boolean }>();
 
   dnd = inject(DragDropService);
 
+  /** Questions first, sections last (matches parent selection indices). */
+  readonly sortItems = sortedFormItems;
+  readonly virtualScrollThreshold = 55;
+  readonly virtualRowHeightPx = 88;
+
+  /** Virtual scroll only when every row is a question (fixed-height rows + selection path matches `path`). */
+  useVirtualQuestionList(): boolean {
+    return (
+      this.items.length >= this.virtualScrollThreshold &&
+      this.items.every((i) => i.type !== 'section')
+    );
+  }
+
+  questionOnlyFlatRows(): FlatFormRow[] {
+    return sortedFormItems(this.items).map((item) => ({
+      pageId: this.pageId,
+      parentPath: this.path,
+      depth: this.depth,
+      item: item as FormItemLike,
+    }));
+  }
+
+  trackQuestionFlatRow = (_: number, row: FlatFormRow) => flatRowTrackKey(row);
+
+  onQuestionVirtualAction(a: VirtualRowAction) {
+    switch (a.type) {
+      case 'select':
+        this.selectRows.emit({ itemId: a.itemId, shiftKey: a.shiftKey });
+        break;
+      case 'toggleCollapse':
+        break;
+      case 'titleChange':
+        this.titleChange.emit({ id: a.id, value: a.value, path: a.parentPath });
+        break;
+      case 'typeChange':
+        this.typeChange.emit({ id: a.id, value: a.value, path: a.parentPath });
+        break;
+      case 'delete':
+        this.deleteItem.emit({ id: a.id, path: a.parentPath });
+        break;
+      case 'addQuestion':
+      case 'addSection':
+        break;
+    }
+  }
+
   buildPath(path: string[], id: string): string[] {
     return path.concat(id);
+  }
+
+  private pathsEq(a: string[], b: string[]): boolean {
+    return a.length === b.length && a.every((x, i) => x === b[i]);
+  }
+
+  private typingTarget(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    return !!el.closest('input,textarea,select,[contenteditable="true"]');
+  }
+
+  isRowSelected(itemId: string): boolean {
+    const s = this.listSelection;
+    if (!s || s.pageId !== this.pageId || !this.pathsEq(s.parentPath, this.path)) return false;
+    const display = sortedFormItems([...this.items]);
+    const lo = Math.min(s.anchorIndex, s.focusIndex);
+    const hi = Math.max(s.anchorIndex, s.focusIndex);
+    return display.slice(lo, hi + 1).some((i) => i.id === itemId);
+  }
+
+  onSelectableClick(ev: MouseEvent, itemId: string) {
+    if (this.typingTarget(ev.target)) return;
+    const t = ev.target as HTMLElement;
+    if (t.closest('button')) return;
+    this.selectRows.emit({ itemId, shiftKey: ev.shiftKey });
   }
 
   // ── Drag handlers ───────────────────────────────────────────────────────────

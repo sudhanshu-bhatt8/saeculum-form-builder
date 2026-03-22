@@ -1,7 +1,26 @@
-import { Component, signal, computed, inject } from '@angular/core';
+import {
+  Component,
+  signal,
+  computed,
+  inject,
+  HostListener,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { SectionChildrenComponent } from './section/sections/sections';
 import { DragDropService } from './services/drag-ndrop';
+import { sortedFormItems } from './form-item-order';
+import {
+  flattenVisibleFormRows,
+  flatRowTrackKey,
+  type FlatFormRow,
+  type FormItemLike,
+} from './form-flatten';
+import {
+  FormVirtualRowComponent,
+  type VirtualRowAction,
+} from './form-virtual-row/form-virtual-row';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type QuestionType = 'text' | 'checkbox';
@@ -54,23 +73,123 @@ function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v));
 }
 
+/** Contiguous selection within one parent list (display order: questions first, sections last). */
+export interface FormListSelection {
+  pageId: string;
+  parentPath: string[];
+  anchorIndex: number;
+  focusIndex: number;
+}
+
+function pathsEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+/** Section shell for copy/paste (no nested children). */
+function sectionShellFrom(source: FormSection): FormSection {
+  return {
+    id: uid(),
+    type: 'section',
+    title: source.title,
+    collapsed: false,
+    children: [],
+  };
+}
+
+function freshQuestionFrom(source: FormQuestion): FormQuestion {
+  const q = clone(source);
+  q.id = uid();
+  if (q.options?.length) {
+    q.options = q.options.map((o) => ({ ...o, id: uid(), label: o.label }));
+  }
+  return q;
+}
+
+function itemForPaste(item: FormItem): FormItem {
+  if (item.type === 'section') return sectionShellFrom(item as FormSection);
+  return freshQuestionFrom(item as FormQuestion);
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, SectionChildrenComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule, ScrollingModule, SectionChildrenComponent, FormVirtualRowComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
+  /** When visible flat rows ≥ threshold, use CDK virtual scroll (drag reorder disabled for that page). */
+  readonly virtualScrollThreshold = 55;
+  readonly virtualRowHeightPx = 88;
+
+  /** Flattened visible rows per page (questions-first order, expanded sections inlined). */
+  pageFlatRows = computed(() => {
+    const map = new Map<string, FlatFormRow[]>();
+    for (const p of this.pages()) {
+      map.set(p.id, flattenVisibleFormRows(p.id, p.items as FormItemLike[], [], 0));
+    }
+    return map;
+  });
   pages = signal<FormPage[]>([mkPage(1)]);
   editingPageId = signal('');
   openPageMenuId = signal('');
-  clipboard = signal<FormItem | null>(null);
+  /** Keyboard copy buffer (supports multiple items; sections are shells only). */
+  internalClipboard = signal<FormItem[]>([]);
+  /** Contiguous row selection for copy / paste anchor. */
+  selection = signal<FormListSelection | null>(null);
   dnd = inject(DragDropService);
   private undoStack: string[] = [];
   private redoStack: string[] = [];
   canUndo = computed(() => this.undoStack.length > 0);
   canRedo = computed(() => this.redoStack.length > 0);
+
+  virtualRows(pageId: string): FlatFormRow[] {
+    return this.pageFlatRows().get(pageId) ?? [];
+  }
+
+  useVirtualForPage(pageId: string): boolean {
+    return this.virtualRows(pageId).length >= this.virtualScrollThreshold;
+  }
+
+  trackFlatRow = (_: number, row: FlatFormRow) => flatRowTrackKey(row);
+
+  onVirtualRowAction(a: VirtualRowAction) {
+    switch (a.type) {
+      case 'select': {
+        const list = this.getListRef(a.pageId, a.parentPath);
+        if (list)
+          this.onListRowClick(a.pageId, a.parentPath, { itemId: a.itemId, shiftKey: a.shiftKey }, list);
+        break;
+      }
+      case 'toggleCollapse':
+        this.toggleCollapseAt(a.pageId, a.parentPath, a.id);
+        break;
+      case 'titleChange':
+        this.updateTitleAt(a.pageId, a.parentPath, a.id, a.value);
+        break;
+      case 'typeChange':
+        this.applyQuestionType(a.pageId, a.parentPath, a.id, a.value);
+        break;
+      case 'delete':
+        this.deleteAt(a.pageId, a.parentPath, a.id);
+        break;
+      case 'addQuestion':
+        this.addQuestionAt(a.pageId, a.parentPath, a.sectionId);
+        break;
+      case 'addSection':
+        this.addSectionAt(a.pageId, a.parentPath, a.sectionId);
+        break;
+    }
+  }
+
+  applyQuestionType(pageId: string, parentPath: string[], itemId: string, type: string) {
+    if (parentPath.length === 0) {
+      this.setItemType(pageId, itemId, type as QuestionType);
+    } else {
+      this.setTypeAt(pageId, parentPath, itemId, type);
+    }
+  }
 
   // ── Undo/Redo ───────────────────────────────────────────────────────────────
   private snap() {
@@ -251,18 +370,155 @@ export class App {
     });
   }
 
-  // ── Copy/Paste ──────────────────────────────────────────────────────────────
-  copyItem(pageId: string, itemId: string) {
-    const page = this.pages().find((p) => p.id === pageId);
-    const item = page?.items.find((i) => i.id === itemId);
-    if (item) this.clipboard.set(clone(item));
+  // ── Selection / keyboard copy–paste (Ctrl/Cmd+C, Ctrl/Cmd+V) ───────────────
+  private typingTarget(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    return !!el.closest('input,textarea,select,[contenteditable="true"]');
   }
-  paste() {
-    const item = this.clipboard();
-    if (!item) return;
-    const lastPage = this.pages()[this.pages().length - 1];
-    const copy = { ...clone(item), id: uid() };
-    this.mutatePage(lastPage.id, (p) => p.items.push(copy as FormItem));
+
+  private getListRef(pageId: string, parentPath: string[]): FormItem[] | undefined {
+    const p = this.pages().find((x) => x.id === pageId);
+    if (!p) return undefined;
+    if (parentPath.length === 0) return p.items;
+    return this.findSection(p.items, parentPath)?.children as FormItem[] | undefined;
+  }
+
+  /** Indices in `sel` refer to `sortedFormItems(list)` order. */
+  private selectionSliceIds(sel: FormListSelection, displayOrdered: FormItem[]): string[] {
+    const lo = Math.min(sel.anchorIndex, sel.focusIndex);
+    const hi = Math.max(sel.anchorIndex, sel.focusIndex);
+    return displayOrdered.slice(lo, hi + 1).map((i) => i.id);
+  }
+
+  sortedItems(items: FormItem[]): FormItem[] {
+    return sortedFormItems(items);
+  }
+
+  isRowSelected(pageId: string, parentPath: string[], itemId: string): boolean {
+    const sel = this.selection();
+    if (!sel || sel.pageId !== pageId || !pathsEqual(sel.parentPath, parentPath)) return false;
+    const list = this.getListRef(pageId, parentPath);
+    if (!list) return false;
+    const display = sortedFormItems(list);
+    return this.selectionSliceIds(sel, display).includes(itemId);
+  }
+
+  onTopLevelRowClick(ev: MouseEvent, pageId: string, itemId: string, items: FormItem[]) {
+    if (this.typingTarget(ev.target)) return;
+    const t = ev.target as HTMLElement;
+    if (t.closest('button')) return;
+    this.onListRowClick(pageId, [], { itemId, shiftKey: ev.shiftKey }, items);
+  }
+
+  onListRowClick(
+    pageId: string,
+    parentPath: string[],
+    ev: { itemId: string; shiftKey: boolean },
+    list: FormItem[],
+  ) {
+    const display = sortedFormItems([...list]);
+    const idx = display.findIndex((i) => i.id === ev.itemId);
+    if (idx === -1) return;
+    const cur = this.selection();
+    if (
+      !ev.shiftKey ||
+      !cur ||
+      cur.pageId !== pageId ||
+      !pathsEqual(cur.parentPath, parentPath)
+    ) {
+      this.selection.set({ pageId, parentPath, anchorIndex: idx, focusIndex: idx });
+      return;
+    }
+    this.selection.set({
+      pageId,
+      parentPath,
+      anchorIndex: cur.anchorIndex,
+      focusIndex: idx,
+    });
+  }
+
+  private extendSelection(delta: number) {
+    const sel = this.selection();
+    if (!sel) return;
+    const list = this.getListRef(sel.pageId, sel.parentPath);
+    const display = list?.length ? sortedFormItems([...list]) : [];
+    if (!display.length) return;
+    const next = Math.min(display.length - 1, Math.max(0, sel.focusIndex + delta));
+    this.selection.set({ ...sel, focusIndex: next });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(e: KeyboardEvent) {
+    if (this.typingTarget(e.target)) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (e.key === 'ArrowDown' && e.shiftKey && !mod) {
+      e.preventDefault();
+      this.extendSelection(1);
+      return;
+    }
+    if (e.key === 'ArrowUp' && e.shiftKey && !mod) {
+      e.preventDefault();
+      this.extendSelection(-1);
+      return;
+    }
+    if (mod && (e.key === 'c' || e.key === 'C')) {
+      const sel = this.selection();
+      if (!sel || !this.getListRef(sel.pageId, sel.parentPath)) return;
+      e.preventDefault();
+      this.copySelectionToInternalClipboard();
+      return;
+    }
+    if (mod && (e.key === 'v' || e.key === 'V')) {
+      const sel = this.selection();
+      if (!sel || this.internalClipboard().length === 0) return;
+      e.preventDefault();
+      this.pasteInternalClipboard();
+    }
+  }
+
+  private copySelectionToInternalClipboard() {
+    const sel = this.selection();
+    if (!sel) return;
+    const list = this.getListRef(sel.pageId, sel.parentPath);
+    if (!list) return;
+    const display = sortedFormItems([...list]);
+    const lo = Math.min(sel.anchorIndex, sel.focusIndex);
+    const hi = Math.max(sel.anchorIndex, sel.focusIndex);
+    const items = display.slice(lo, hi + 1);
+    const payload = items.map((item) =>
+      item.type === 'section' ? sectionShellFrom(item as FormSection) : clone(item),
+    ) as FormItem[];
+    this.internalClipboard.set(payload);
+  }
+
+  private pasteInternalClipboard() {
+    const sel = this.selection();
+    const payload = this.internalClipboard();
+    if (!sel || payload.length === 0) return;
+    this.mutatePage(sel.pageId, (p) => {
+      const list = this.getListRefFromPage(p, sel.parentPath);
+      if (!list) return;
+      const display = sortedFormItems([...list]);
+      const hi = Math.max(sel.anchorIndex, sel.focusIndex);
+      const lastId = display[hi]?.id;
+      if (lastId === undefined) return;
+      let insertAt = list.findIndex((i) => i.id === lastId);
+      if (insertAt === -1) return;
+      for (const template of payload) {
+        const copy = itemForPaste(template);
+        list.splice(insertAt + 1, 0, copy);
+        insertAt++;
+      }
+    });
+  }
+
+  private getListRefFromPage(page: FormPage, parentPath: string[]): FormItem[] | undefined {
+    if (parentPath.length === 0) return page.items;
+    return this.findSection(page.items, parentPath)?.children as FormItem[] | undefined;
   }
 
   // ── Drag & Drop ─────────────────────────────────────────────────────────────
@@ -406,17 +662,6 @@ export class App {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // ADD THESE TO app.ts
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  // 1. Inject DragDropService at the top of the class:
-  //    dnd = inject(DragDropService);
-  //
-  // 2. Add these imports at the top of the file:
-  //    import { inject } from '@angular/core';
-  //    import { DragDropService } from './section/drag-drop.service';
-
   // ── Top-level drag handlers (for page.items[]) ───────────────────────────────
 
   onDragStart(event: DragEvent, pageId: string, item: FormItem) {
@@ -533,10 +778,4 @@ export class App {
     return this.dnd.isDropTarget(pageId, [], itemId);
   }
 
-  sortedItems(items: FormItem[]): FormItem[] {
-    return [
-      ...items.filter((i) => i.type !== 'section'), // questions first
-      ...items.filter((i) => i.type === 'section'), // sections after
-    ];
-  }
 }

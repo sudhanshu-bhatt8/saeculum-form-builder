@@ -1,7 +1,7 @@
 <div class="min-h-screen bg-[#F0F2F8] flex flex-col font-sans">
   <!-- Top Toolbar -->
   <header
-    class="bg-white border-b border-gray-200 px-5 py-2.5 flex items-center justify-between sticky top-0 z-20 shadow-sm"
+    class="bg-white border-b border-gray-200 px-3 sm:px-5 py-2.5 flex items-center justify-between sticky top-0 z-20 shadow-sm touch-manipulation"
   >
     <div class="flex items-center gap-2">
       <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,14 +49,16 @@
   </header>
 
   <!-- Scrollable Canvas -->
-  <main class="flex-1 overflow-y-auto py-6 px-4 flex flex-col items-center gap-4">
+  <main
+    class="flex-1 overflow-y-auto py-4 sm:py-6 px-2 sm:px-4 flex flex-col items-center gap-4 max-w-[100vw]"
+  >
     @for (page of pages(); track page.id; let pi = $index) {
       <!-- Page Card -->
       <div
-        class="w-full max-w-4xl bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden"
+        class="w-full max-w-4xl bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden min-w-0"
       >
         <!-- Page Header -->
-        <div class="flex items-start justify-between px-4 py-3 border-b border-gray-100">
+        <div class="flex items-start justify-between px-3 sm:px-4 py-3 border-b border-gray-100 gap-2">
           <div class="flex items-start gap-2 flex-1 min-w-0">
             <!-- Collapse toggle -->
             <button
@@ -147,7 +149,7 @@
         @if (!page.collapsed) {
           <!-- Column Headers -->
           <div
-            class="grid grid-cols-[1fr_200px_32px] gap-0 px-4 py-1.5 border-b border-gray-100 bg-gray-50/60"
+            class="hidden sm:grid grid-cols-[1fr_200px_32px] gap-0 px-4 py-1.5 border-b border-gray-100 bg-gray-50/60"
           >
             <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider"
               >Question</span
@@ -157,15 +159,37 @@
             >
             <span></span>
           </div>
+          <div
+            class="sm:hidden px-3 py-1.5 border-b border-gray-100 bg-gray-50/60 text-[11px] font-semibold text-gray-400 uppercase tracking-wider"
+          >
+            Questions
+          </div>
 
-          <!-- Items -->
-          <div class="divide-y divide-gray-50">
-            <!-- ─────────────────────────────────────────────────────────────────────────
-     REPLACE the entire @for (item of page.items ...) block in app.html
-     with this version which has full drag-drop on top-level items.
-     ───────────────────────────────────────────────────────────────────────── -->
-
-            @for (item of sortedItems(page.items); track item.id; let qi = $index) {
+          <!-- Items: virtual scroll for large visible lists -->
+          @if (useVirtualForPage(page.id)) {
+            <div
+              class="border-b border-amber-100 bg-amber-50/80 text-[10px] text-amber-900 px-3 py-1.5"
+            >
+              Large form: using virtual scroll. Drag-and-drop reorder is off here; collapse
+              sections or stay under {{ virtualScrollThreshold }} visible rows for classic mode.
+            </div>
+            <cdk-virtual-scroll-viewport
+              [itemSize]="virtualRowHeightPx"
+              minBufferPx="200"
+              maxBufferPx="400"
+              class="fb-vscroll w-full min-h-[min(70vh,56rem)] h-[min(70vh,56rem)] sm:h-[min(65vh,48rem)]"
+            >
+              <app-form-virtual-row
+                *cdkVirtualFor="let row of virtualRows(page.id); trackBy: trackFlatRow"
+                [row]="row"
+                [selected]="isRowSelected(row.pageId, row.parentPath, row.item.id)"
+                [virtualMode]="true"
+                (rowAction)="onVirtualRowAction($event)"
+              />
+            </cdk-virtual-scroll-viewport>
+          } @else {
+          <div class="divide-y divide-gray-50 min-w-0 overflow-x-auto">
+            @for (item of sortedItems(page.items); track item.id) {
               @if (item.type === 'section') {
                 <!-- ── Top-level Section ──────────────────────────────────────────── -->
                 <div
@@ -173,6 +197,11 @@
                   [class.opacity-40]="isDraggingItem(page.id, item.id)"
                   [class.border-t-2]="isDropTargetItem(page.id, item.id)"
                   [class.border-blue-400]="isDropTargetItem(page.id, item.id)"
+                  [class.ring-2]="isRowSelected(page.id, [], item.id)"
+                  [class.ring-blue-400]="isRowSelected(page.id, [], item.id)"
+                  [class.relative]="isRowSelected(page.id, [], item.id)"
+                  [class.z-10]="isRowSelected(page.id, [], item.id)"
+                  (click)="onTopLevelRowClick($event, page.id, item.id, page.items)"
                   [attr.draggable]="item.collapsed ? 'true' : 'false'"
                   (dragstart)="onDragStart($event, page.id, item)"
                   (dragover)="onDragOver($event, page.id, item)"
@@ -303,6 +332,7 @@
                         [depth]="1"
                         [path]="[item.id]"
                         [pageId]="page.id"
+                        [listSelection]="selection()"
                         (addQuestion)="addQuestionAt(page.id, $event.path, $event.id)"
                         (addSection)="addSectionAt(page.id, $event.path, $event.id)"
                         (deleteItem)="deleteAt(page.id, $event.path, $event.id)"
@@ -312,6 +342,7 @@
                         "
                         (toggleCollapse)="toggleCollapseAt(page.id, $event.path, $event.id)"
                         (reorder)="onSectionChildReorder($event)"
+                        (selectRows)="onListRowClick(page.id, [item.id], $event, item.children)"
                       />
                     </div>
                   }
@@ -319,11 +350,16 @@
               } @else {
                 <!-- ── Standalone Question Row ────────────────────────────────────── -->
                 <div
-                  class="grid grid-cols-[1fr_200px_32px] items-center gap-0 px-4 group/row hover:bg-gray-50 transition-all duration-150"
+                  class="flex flex-col gap-2 px-3 sm:px-4 sm:grid sm:grid-cols-[1fr_minmax(0,200px)_40px] sm:items-center sm:gap-0 group/row hover:bg-gray-50 transition-all duration-150 min-w-0"
                   [class.opacity-40]="isDraggingItem(page.id, item.id)"
                   [class.border-t-2]="isDropTargetItem(page.id, item.id)"
                   [class.border-blue-400]="isDropTargetItem(page.id, item.id)"
                   [class.bg-blue-50]="isDropTargetItem(page.id, item.id)"
+                  [class.ring-2]="isRowSelected(page.id, [], item.id)"
+                  [class.ring-blue-400]="isRowSelected(page.id, [], item.id)"
+                  [class.relative]="isRowSelected(page.id, [], item.id)"
+                  [class.z-10]="isRowSelected(page.id, [], item.id)"
+                  (click)="onTopLevelRowClick($event, page.id, item.id, page.items)"
                   draggable="true"
                   (dragstart)="onDragStart($event, page.id, item)"
                   (dragover)="onDragOver($event, page.id, item)"
@@ -332,7 +368,9 @@
                   role="listitem"
                   [attr.aria-label]="'Question: ' + item.title"
                 >
-                  <div class="flex items-center gap-2 py-2 pr-2 border-r border-gray-100">
+                  <div
+                    class="flex items-center gap-2 py-2 sm:pr-2 sm:border-r border-gray-100 min-w-0"
+                  >
                     <span
                       class="cursor-grab text-gray-200 group-hover/row:text-gray-400 transition flex-shrink-0"
                     >
@@ -355,7 +393,9 @@
                     />
                   </div>
 
-                  <div class="flex items-center gap-1 px-2 py-1 border-r border-gray-100">
+                  <div
+                    class="flex items-center gap-2 px-0 sm:px-2 py-1 sm:border-r border-gray-100 min-w-0"
+                  >
                     <span
                       class="text-[10px] flex-shrink-0"
                       [class.text-green-600]="item.type === 'checkbox'"
@@ -388,7 +428,7 @@
                     <select
                       [value]="item.type"
                       (change)="setItemType(page.id, item.id, $any($event.target).value)"
-                      class="ml-auto text-[11px] text-gray-500 bg-transparent outline-none cursor-pointer"
+                      class="flex-1 sm:ml-auto text-[11px] text-gray-500 bg-transparent outline-none cursor-pointer min-h-11 sm:min-h-0 rounded border border-gray-200 sm:border-0 px-2 sm:px-0"
                       aria-label="Response type"
                     >
                       <option value="text">Text answer</option>
@@ -396,10 +436,11 @@
                     </select>
                   </div>
 
-                  <div class="flex items-center justify-center py-1">
+                  <div class="flex items-center justify-end sm:justify-center py-1">
                     <button
+                      type="button"
                       (click)="deleteItem(page.id, item.id)"
-                      class="text-gray-300 hover:text-red-400 transition p-0.5 opacity-0 group-hover/row:opacity-100"
+                      class="text-gray-300 hover:text-red-400 transition p-2 sm:p-0.5 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 sm:opacity-0 sm:group-hover/row:opacity-100 touch-manipulation"
                       aria-label="Delete question"
                     >
                       <svg
@@ -428,12 +469,16 @@
               </div>
             }
           </div>
+          }
 
           <!-- Bottom Action Bar (per page) -->
-          <div class="flex items-center gap-2 px-4 py-2.5 border-t border-gray-100 bg-gray-50/40">
+          <div
+            class="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2.5 border-t border-gray-100 bg-gray-50/40 touch-manipulation"
+          >
             <button
+              type="button"
               (click)="addQuestion(page.id)"
-              class="flex items-center gap-1 px-2.5 py-1 rounded border border-blue-300 text-blue-600 text-[11px] font-semibold bg-white hover:bg-blue-50 transition shadow-sm"
+              class="flex items-center gap-1 px-2.5 py-2 sm:py-1 rounded border border-blue-300 text-blue-600 text-[11px] font-semibold bg-white hover:bg-blue-50 transition shadow-sm min-h-11 sm:min-h-0"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -446,8 +491,9 @@
               Question
             </button>
             <button
+              type="button"
               (click)="addSection(page.id)"
-              class="flex items-center gap-1 px-2.5 py-1 rounded border border-gray-300 text-gray-600 text-[11px] font-semibold bg-white hover:bg-gray-50 transition shadow-sm"
+              class="flex items-center gap-1 px-2.5 py-2 sm:py-1 rounded border border-gray-300 text-gray-600 text-[11px] font-semibold bg-white hover:bg-gray-50 transition shadow-sm min-h-11 sm:min-h-0"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -460,8 +506,9 @@
               Section
             </button>
             <button
+              type="button"
               (click)="addPage()"
-              class="flex items-center gap-1 px-2.5 py-1 rounded border border-gray-300 text-gray-600 text-[11px] font-semibold bg-white hover:bg-gray-50 transition shadow-sm"
+              class="flex items-center gap-1 px-2.5 py-2 sm:py-1 rounded border border-gray-300 text-gray-600 text-[11px] font-semibold bg-white hover:bg-gray-50 transition shadow-sm min-h-11 sm:min-h-0"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -478,24 +525,5 @@
       </div>
     }
 
-    <!-- Clipboard paste hint -->
-    @if (clipboard()) {
-      <div class="w-full max-w-4xl">
-        <button
-          (click)="paste()"
-          class="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 rounded-lg text-xs text-blue-500 font-medium hover:bg-blue-50 transition"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
-          Paste copied item at end of last page
-        </button>
-      </div>
-    }
   </main>
 </div>

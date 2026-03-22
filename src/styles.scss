@@ -38,3 +38,13 @@ body {
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+/* CDK virtual scroll viewports */
+cdk-virtual-scroll-viewport.fb-vscroll,
+cdk-virtual-scroll-viewport.fb-vscroll-nested {
+  contain: strict;
+}
+
+.cdk-virtual-scroll-content-wrapper {
+  max-width: 100%;
+}
